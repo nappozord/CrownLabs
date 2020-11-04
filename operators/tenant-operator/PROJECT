@@ -1,0 +1,7 @@
+domain: crownlabs.polito.it
+repo: github.com/netgroup-polito/CrownLabs/operators/tenant-operator
+resources:
+- group: tenant
+  kind: Tenant
+  version: v1alpha1
+version: "2"

@@ -1,0 +1,146 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: tenants.tenant.crownlabs.polito.it
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.name
+    name: Name
+    type: string
+  - JSONPath: .spec.surname
+    name: Surname
+    type: string
+  - JSONPath: .spec.email
+    name: Email
+    type: string
+  - JSONPath: .spec.ID
+    name: ID
+    type: string
+  group: tenant.crownlabs.polito.it
+  names:
+    kind: Tenant
+    listKind: TenantList
+    plural: tenants
+    singular: tenant
+  scope: Namespaced
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: Tenant is the Schema for the tenants API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: TenantSpec defines the desired state of Tenant
+          properties:
+            ID:
+              minLength: 8
+              type: string
+            email:
+              pattern: ^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$
+              type: string
+            name:
+              type: string
+            publicKeys:
+              description: public keys of user
+              items:
+                type: string
+              type: array
+            surname:
+              type: string
+            workspaces:
+              description: list of workspaces the user is in
+              items:
+                description: UserWorkspaceData contains the info of the workspaces
+                  related to a user
+                properties:
+                  groupNumber:
+                    type: integer
+                  role:
+                    description: WorkspaceUserRole is an enum for the role of a user
+                      in a workspace
+                    enum:
+                    - Admin
+                    - Basic
+                    type: string
+                  workspaceURL:
+                    type: string
+                required:
+                - groupNumber
+                - role
+                - workspaceURL
+                type: object
+              type: array
+          required:
+          - ID
+          - email
+          - name
+          - surname
+          type: object
+        status:
+          description: TenantStatus defines the observed state of Tenant
+          properties:
+            namespaceSandbox:
+              description: NameCreated contains info about the status of a resource
+              properties:
+                created:
+                  type: boolean
+                name:
+                  type: string
+              required:
+              - created
+              - name
+              type: object
+            personalNamespace:
+              description: NameCreated contains info about the status of a resource
+              properties:
+                created:
+                  type: boolean
+                name:
+                  type: string
+              required:
+              - created
+              - name
+              type: object
+            subscriptionStatus:
+              additionalProperties:
+                description: SubscriptionStatus is an enum for the status of a subscription
+                  to a service
+                enum:
+                - Ok
+                - Pending
+                - Failed
+                type: string
+              type: object
+          required:
+          - namespaceSandbox
+          - personalNamespace
+          - subscriptionStatus
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
