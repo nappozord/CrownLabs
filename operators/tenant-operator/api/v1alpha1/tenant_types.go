@@ -61,37 +61,26 @@ type TenantSpec struct {
 
 	// public keys of user
 	PublicKeys []string `json:"publicKeys,omitempty"`
+
+	// should the resource create the sandbox namespace for k8s practice environment
+	// +kubebuilder:validation:Default=false
+	CreateSandbox bool `json:"createSandbox,omitempty"`
 }
-
-// NameCreated contains info about the status of a resource
-type NameCreated struct {
-	Name    string `json:"name"`
-	Created bool   `json:"created"`
-}
-
-// SubscriptionStatus is an enum for the status of a subscription to a service
-// +kubebuilder:validation:Enum=Ok;Pending;Failed
-type SubscriptionStatus string
-
-const (
-	// Ok -> the subscription was successful
-	Ok SubscriptionStatus = "Ok"
-	// Pending -> the subscription is in process
-	Pending SubscriptionStatus = "Pending"
-	// Failed -> the subscription has failed
-	Failed SubscriptionStatus = "Failed"
-)
 
 // TenantStatus defines the observed state of Tenant
 type TenantStatus struct {
-	PersonalNamespace NameCreated                   `json:"personalNamespace"`
-	NamespaceSandbox  NameCreated                   `json:"namespaceSandbox"`
-	Subscriptions     map[string]SubscriptionStatus `json:"subscriptionStatus"`
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	PersonalNamespace NameCreated `json:"personalNamespace,omitempty"`
+	SandboxNamespace  NameCreated `json:"sandboxNamespace,omitempty"`
+
+	Subscriptions map[string]SubscriptionStatus `json:"subscription,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope="Cluster"
 // +kubebuilder:printcolumn:name="Name",type=string,JSONPath=`.spec.name`
 // +kubebuilder:printcolumn:name="Surname",type=string,JSONPath=`.spec.surname`
 // +kubebuilder:printcolumn:name="Email",type=string,JSONPath=`.spec.email`
@@ -107,7 +96,6 @@ type Tenant struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 
 // TenantList contains a list of Tenant
 type TenantList struct {

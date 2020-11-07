@@ -4,4 +4,7 @@ resources:
 - group: tenant
   kind: Tenant
   version: v1alpha1
+- group: tenant
+  kind: Workspace
+  version: v1alpha1
 version: "2"

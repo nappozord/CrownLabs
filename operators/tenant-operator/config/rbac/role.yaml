@@ -26,3 +26,23 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - tenant.crownlabs.polito.it
+  resources:
+  - workspaces
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tenant.crownlabs.polito.it
+  resources:
+  - workspaces/status
+  verbs:
+  - get
+  - patch
+  - update

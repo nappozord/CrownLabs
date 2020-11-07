@@ -17,9 +17,6 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,24 +36,24 @@ type TenantReconciler struct {
 // +kubebuilder:rbac:groups=tenant.crownlabs.polito.it,resources=tenants/status,verbs=get;update;patch
 
 func (r *TenantReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("tenant", req.NamespacedName)
+	// ctx := context.Background()
+	// log := r.Log.WithValues("tenant", req.NamespacedName)
 
-	log.Info(fmt.Sprintf("%s has been created", req.Name))
-	var tenant tenantv1alpha1.Tenant
+	// log.Info(fmt.Sprintf("%s has been created", req.Name))
 
-	r.Get(ctx, req.NamespacedName, &tenant)
-	log.Info(fmt.Sprintf("Reached %v", tenant.Status))
-	if tenant.Status.Subscriptions == nil {
-		tenant.Status.Subscriptions = make(map[string]tenantv1alpha1.SubscriptionStatus)
-	}
-	tenant.Status.Subscriptions["keycloak"] = tenantv1alpha1.Pending
-	log.Info(fmt.Sprintf("New status %v", tenant.Status))
-	if err := r.Status().Update(ctx, &tenant); err != nil {
-		log.Error(err, "failed to update status")
-	} else {
-		log.Info("UPDATED STATUS")
-	}
+	// var tenant tenantv1alpha1.Tenant
+	// r.Get(ctx, req.NamespacedName, &tenant)
+	// if tenant.Status.Subscriptions == nil {
+	// 	log.Info(fmt.Sprintf("Subscription was nil"))
+	// 	tenant.Status.Subscriptions = make(map[string]tenantv1alpha1.SubscriptionStatus)
+	// }
+	// tenant.Status.Subscriptions["keycloak"] = tenantv1alpha1.Pending
+	// log.Info(fmt.Sprintf("New status %v", tenant.Status))
+	// if err := r.Status().Update(ctx, &tenant); err != nil {
+	// 	log.Error(err, "failed to update status")
+	// } else {
+	// 	log.Info("UPDATED STATUS")
+	// }
 	return ctrl.Result{}, nil
 }
 

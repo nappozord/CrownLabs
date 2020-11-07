@@ -7,7 +7,7 @@ spec:
   surname: rossi
   ID: id12345678
   email: mario.rossi@email.com
-  workspaces:
-    - workspaceURL: LANDC
-      role: Basic
-      groupNumber: 12
+  # workspaces:
+  #   - workspaceURL: LANDC
+  #     role: Basic
+  #     groupNumber: 12

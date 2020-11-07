@@ -1,0 +1,6 @@
+apiVersion: tenant.crownlabs.polito.it/v1alpha1
+kind: Workspace
+metadata:
+  name: landc
+spec:
+  prettyName: Reti Locali e Data Centers

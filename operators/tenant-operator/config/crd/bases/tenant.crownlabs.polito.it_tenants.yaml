@@ -27,8 +27,9 @@ spec:
     listKind: TenantList
     plural: tenants
     singular: tenant
-  scope: Namespaced
-  subresources: {}
+  scope: Cluster
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Tenant is the Schema for the tenants API
@@ -51,6 +52,10 @@ spec:
             ID:
               minLength: 8
               type: string
+            createSandbox:
+              description: should the resource create the sandbox namespace for k8s
+                practice environment
+              type: boolean
             email:
               pattern: ^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$
               type: string
@@ -95,17 +100,6 @@ spec:
         status:
           description: TenantStatus defines the observed state of Tenant
           properties:
-            namespaceSandbox:
-              description: NameCreated contains info about the status of a resource
-              properties:
-                created:
-                  type: boolean
-                name:
-                  type: string
-              required:
-              - created
-              - name
-              type: object
             personalNamespace:
               description: NameCreated contains info about the status of a resource
               properties:
@@ -115,9 +109,18 @@ spec:
                   type: string
               required:
               - created
-              - name
               type: object
-            subscriptionStatus:
+            sandboxNamespace:
+              description: NameCreated contains info about the status of a resource
+              properties:
+                created:
+                  type: boolean
+                name:
+                  type: string
+              required:
+              - created
+              type: object
+            subscription:
               additionalProperties:
                 description: SubscriptionStatus is an enum for the status of a subscription
                   to a service
@@ -127,10 +130,6 @@ spec:
                 - Failed
                 type: string
               type: object
-          required:
-          - namespaceSandbox
-          - personalNamespace
-          - subscriptionStatus
           type: object
       type: object
   version: v1alpha1
