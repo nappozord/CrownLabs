@@ -52,7 +52,7 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		log.Info(fmt.Sprintf("Workspace %s deleted", req.Name))
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	wsnsName := fmt.Sprintf("worspace-%s", req.Name)
+	wsnsName := fmt.Sprintf("workspace-%s", req.Name)
 	namespaceName := types.NamespacedName{
 		Name:      wsnsName,
 		Namespace: "",
@@ -76,31 +76,38 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if err := r.Get(ctx, namespaceName, &wsns); err != nil {
 		// namespace was not defined, need to create it
-
 		if err := r.Create(ctx, &wsns); err != nil {
 			log.Error(err, "Unable to create namespace")
+			ws.Status.Namespace.Created = false
+			ws.Status.Namespace.Name = ""
+			if err := r.Status().Update(ctx, &ws); err != nil {
+				log.Error(err, "Unable to update status")
+				return ctrl.Result{}, err
+			}
 			return ctrl.Result{}, err
 		}
 		log.Info(fmt.Sprintf("Namespace %s created", wsnsName))
-		ws.Status.Namespace.Created = true
-		ws.Status.Namespace.Name = wsnsName
-		if err := r.Status().Update(ctx, &ws); err != nil {
-			log.Error(err, "Unable to update status")
-			return ctrl.Result{}, err
-		}
 
 	} else {
 		if err := r.Update(ctx, &wsns); err != nil {
 			log.Error(err, "Unable to update namespace")
+			ws.Status.Namespace.Created = false
+			ws.Status.Namespace.Name = ""
+			if err := r.Status().Update(ctx, &ws); err != nil {
+				log.Error(err, "Unable to update status")
+				return ctrl.Result{}, err
+			}
 			return ctrl.Result{}, err
 		}
 		log.Info(fmt.Sprintf("Namespace %s updated", wsnsName))
-		ws.Status.Namespace.Created = true
-		ws.Status.Namespace.Name = wsnsName
-		if err := r.Status().Update(ctx, &ws); err != nil {
-			log.Error(err, "Unable to update status")
-			return ctrl.Result{}, err
-		}
+	}
+
+	// update status of workspace with info about namespace
+	ws.Status.Namespace.Created = true
+	ws.Status.Namespace.Name = wsnsName
+	if err := r.Status().Update(ctx, &ws); err != nil {
+		log.Error(err, "Unable to update status")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
