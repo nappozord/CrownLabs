@@ -47,11 +47,11 @@ var _ = Describe("Workspace controller", func() {
 
 	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
-		WSName        = "test-workspace"
-		WSNamespace   = ""
-		WSPrettyName  = "Workspace for testing"
-		WSNSName      = "workspace-test-workspace"
-		WSNSNamespace = ""
+		WSName       = "test-workspace"
+		WSNamespace  = ""
+		WSPrettyName = "Workspace for testing"
+		NSName       = "workspace-test-workspace"
+		NSNamespace  = ""
 
 		timeout  = time.Second * 10
 		duration = time.Second * 10
@@ -90,17 +90,17 @@ var _ = Describe("Workspace controller", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+
 			By("By checking the workspace has the correct name")
-			// Let's make sure our Schedule string value was properly converted/handled.
 			Expect(createdWS.Spec.PrettyName).Should(Equal(WSPrettyName))
 
 			By("By checking the corresponding namespace has been created")
 
-			nswsLookupKey := types.NamespacedName{Name: WSNSName, Namespace: WSNSNamespace}
-			createdNSWS := &v1.Namespace{}
+			nsLookupKey := types.NamespacedName{Name: NSName, Namespace: NSNamespace}
+			createdNS := &v1.Namespace{}
 
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, nswsLookupKey, createdNSWS)
+				err := k8sClient.Get(ctx, nsLookupKey, createdNS)
 				if err != nil {
 					return false
 				}
@@ -108,15 +108,10 @@ var _ = Describe("Workspace controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By("By checking the corresponding namespace has a owner reference pointing to the workspace")
-			// Let's make sure our Schedule string value was properly converted/handled.
 
-			Expect(createdNSWS.OwnerReferences).Should(ContainElement(MatchFields(IgnoreExtras, Fields{"Name": Equal(WSName)})))
-			Expect(createdNSWS.Labels).Should(HaveKeyWithValue("type", "workspace"))
+			Expect(createdNS.OwnerReferences).Should(ContainElement(MatchFields(IgnoreExtras, Fields{"Name": Equal(WSName)})))
+			Expect(createdNS.Labels).Should(HaveKeyWithValue("type", "workspace"))
 		})
 	})
 
 })
-
-/*
-	After writing all this code, you can run `go test ./...` in your `controllers/` directory again to run your new test!
-*/

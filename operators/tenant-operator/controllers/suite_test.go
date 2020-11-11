@@ -67,9 +67,6 @@ var _ = BeforeSuite(func(done Done) {
 	err = tenantv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = tenantv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
 	// +kubebuilder:scaffold:scheme
 
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -80,6 +77,7 @@ var _ = BeforeSuite(func(done Done) {
 	err = (&WorkspaceReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("CronJob"),
+		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

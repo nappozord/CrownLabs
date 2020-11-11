@@ -21,14 +21,11 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	tenantv1alpha1 "github.com/netgroup-polito/CrownLabs/operators/tenant-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	tenantv1alpha1 "github.com/netgroup-polito/CrownLabs/operators/tenant-operator/api/v1alpha1"
 )
 
 // WorkspaceReconciler reconciles a Workspace object
@@ -52,56 +49,22 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		log.Info(fmt.Sprintf("Workspace %s deleted", req.Name))
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	wsnsName := fmt.Sprintf("workspace-%s", req.Name)
-	namespaceName := types.NamespacedName{
-		Name:      wsnsName,
-		Namespace: "",
-	}
-
+	wsnsName := fmt.Sprintf("workspace-%s", ws.Name)
 	wsns := v1.Namespace{}
 	wsns.Name = wsnsName
-	wsns.Labels = make(map[string]string)
-	pTrue := true
-	wsOwnerRef :=
-		[]metav1.OwnerReference{
-			{
-				APIVersion:         ws.APIVersion,
-				Kind:               ws.Kind,
-				Name:               ws.Name,
-				UID:                ws.UID,
-				BlockOwnerDeletion: &pTrue,
-			}}
-	wsns.OwnerReferences = append(wsns.OwnerReferences, wsOwnerRef...)
-	wsns.Labels["type"] = "workspace"
-
-	if err := r.Get(ctx, namespaceName, &wsns); err != nil {
-		// namespace was not defined, need to create it
-		if err := r.Create(ctx, &wsns); err != nil {
-			log.Error(err, "Unable to create namespace")
-			ws.Status.Namespace.Created = false
-			ws.Status.Namespace.Name = ""
-			if err := r.Status().Update(ctx, &ws); err != nil {
-				log.Error(err, "Unable to update status")
-				return ctrl.Result{}, err
-			}
+	wsns.Namespace = ""
+	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, &wsns, func() error {
+		modifyNamespace(ws, &wsns, wsnsName)
+		return ctrl.SetControllerReference(&ws, &wsns, r.Scheme)
+	}); err != nil {
+		log.Error(err, "Unable to create or update namespace")
+		ws.Status.Namespace.Created = false
+		ws.Status.Namespace.Name = ""
+		if err := r.Status().Update(ctx, &ws); err != nil {
+			log.Error(err, "Unable to update status")
 			return ctrl.Result{}, err
 		}
-		log.Info(fmt.Sprintf("Namespace %s created", wsnsName))
-
-	} else {
-		if err := r.Update(ctx, &wsns); err != nil {
-			log.Error(err, "Unable to update namespace")
-			ws.Status.Namespace.Created = false
-			ws.Status.Namespace.Name = ""
-			if err := r.Status().Update(ctx, &ws); err != nil {
-				log.Error(err, "Unable to update status")
-				return ctrl.Result{}, err
-			}
-			return ctrl.Result{}, err
-		}
-		log.Info(fmt.Sprintf("Namespace %s updated", wsnsName))
 	}
-
 	// update status of workspace with info about namespace
 	ws.Status.Namespace.Created = true
 	ws.Status.Namespace.Name = wsnsName
@@ -119,5 +82,9 @@ func (r *WorkspaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func updateStatusNamespace(r *WorkspaceReconciler, ctx context.Context, name string) {
+func modifyNamespace(ws tenantv1alpha1.Workspace, ns *v1.Namespace, wsnsName string) {
+	if ns.Labels == nil {
+		ns.Labels = make(map[string]string)
+	}
+	ns.Labels["type"] = "workspace"
 }
