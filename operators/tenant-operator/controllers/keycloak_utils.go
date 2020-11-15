@@ -7,7 +7,7 @@ import (
 	"time"
 
 	gocloak "github.com/Nerzal/gocloak/v7"
-	"github.com/prometheus/common/log"
+	"k8s.io/klog"
 )
 
 // CheckAndRenewToken checks if the token is expired, if so it renews it
@@ -15,7 +15,7 @@ func CheckAndRenewToken(ctx context.Context, kcClient gocloak.GoCloak, token **g
 
 	_, claims, err := kcClient.DecodeAccessToken(ctx, (*token).AccessToken, "master", "")
 	if err != nil {
-		log.Error(err, "problems when decoding token")
+		klog.Error(err, "problems when decoding token")
 		return err
 	}
 	tokenExpiredDiff := time.Unix(int64((*claims)["exp"].(float64)), 0).Sub(time.Now()).Seconds()
@@ -25,13 +25,13 @@ func CheckAndRenewToken(ctx context.Context, kcClient gocloak.GoCloak, token **g
 		kcAdminPsw := os.Getenv("KEYCLOAK_ADMIN_PSW")
 		*token, err = kcClient.LoginAdmin(ctx, kcAdminUser, kcAdminPsw, "master")
 		if err != nil {
-			log.Error(err, "Error when renewing token")
+			klog.Error(err, "Error when renewing token")
 			return err
 		}
-		log.Info("Token renewed successfully")
+		klog.Info("Token renewed successfully")
 		return nil
 	}
-	log.Info("No need to renew token")
+	klog.Info("No need to renew token")
 	return nil
 }
 
@@ -41,18 +41,18 @@ func GetClientID(ctx context.Context, kcClient gocloak.GoCloak, token string, re
 
 	clients, err := kcClient.GetClients(ctx, token, realmName, gocloak.GetClientsParams{ClientID: &targetClient})
 	if err != nil {
-		log.Error(err, "Error when getting k8s client")
+		klog.Error(err, "Error when getting k8s client")
 		return "", err
 	} else if len(clients) > 1 {
-		log.Error(nil, "too many k8s clients")
+		klog.Error(nil, "too many k8s clients")
 		return "", err
 	} else if len(clients) < 0 {
-		log.Error(nil, "no k8s client")
+		klog.Error(nil, "no k8s client")
 		return "", err
 
 	} else {
 		targetClientID = *clients[0].ID
-		log.Info("Got client id", "id", targetClientID)
+		klog.Info("Got client id", "id", targetClientID)
 		return targetClientID, nil
 	}
 
@@ -65,20 +65,20 @@ func createKcRole(ctx context.Context, kcClient gocloak.GoCloak, token string, r
 	if err != nil && strings.Contains(err.Error(), "404 Not Found: Could not find role") {
 		// error corresponds to "not found"
 		// need to create new role
-		log.Info("Role didn't exists", "role", newRoleName)
+		klog.Info("Role didn't exists", "role", newRoleName)
 		tr := true
 		createdRoleName, err := kcClient.CreateClientRole(ctx, token, "crownlabs", targetClientID, gocloak.Role{Name: &newRoleName, ClientRole: &tr})
 		if err != nil {
-			log.Error(err, "Error when creating role")
+			klog.Error(err, "Error when creating role")
 			return err
 		}
-		log.Info("Role created", "rolename", createdRoleName)
+		klog.Info("Role created", "rolename", createdRoleName)
 		return nil
 	} else if err != nil {
-		log.Error(err, "Error when getting user role")
+		klog.Error(err, "Error when getting user role")
 		return err
 	} else {
-		log.Info("Role already existed", "role", newRoleName)
+		klog.Info("Role already existed", "role", newRoleName)
 		return nil
 	}
 }

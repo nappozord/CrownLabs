@@ -21,11 +21,10 @@ import (
 	"fmt"
 
 	gocloak "github.com/Nerzal/gocloak/v7"
-	"github.com/go-logr/logr"
 	tenantv1alpha1 "github.com/netgroup-polito/CrownLabs/operators/tenant-operator/api/v1alpha1"
-	"github.com/prometheus/common/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,7 +32,6 @@ import (
 // WorkspaceReconciler reconciles a Workspace object
 type WorkspaceReconciler struct {
 	client.Client
-	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	KcClient gocloak.GoCloak
 	KcToken  *gocloak.JWT
@@ -45,14 +43,15 @@ type WorkspaceReconciler struct {
 // Reconcile reconciles the state of a workspace resource
 func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("workspace", req.NamespacedName)
+
+	klog.Info("HELLOOOO")
 
 	CheckAndRenewToken(ctx, r.KcClient, &r.KcToken)
 	token := r.KcToken.AccessToken
 
 	targetClientID, err := GetClientID(ctx, r.KcClient, token, "crownlabs", "k8s")
 	if err != nil {
-		log.Error(err, "Error when getting client")
+		klog.Error(err, "Error when getting client")
 		return ctrl.Result{}, err
 	}
 
@@ -60,8 +59,10 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if err := r.Get(ctx, req.NamespacedName, &ws); err != nil {
 		// reconcile was triggered by a delete request
-		log.Info(fmt.Sprintf("Workspace %s deleted", req.Name))
-		deleteWorkspaceRoles(ctx, r.KcClient, token, targetClientID, req.Name)
+		klog.Info(fmt.Sprintf("Workspace %s deleted", req.Name))
+		if err := deleteWorkspaceRoles(ctx, r.KcClient, token, targetClientID, req.Name); err != nil {
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -73,12 +74,12 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		updateNamespace(ws, &ns, nsName)
 		return ctrl.SetControllerReference(&ws, &ns, r.Scheme)
 	}); err != nil {
-		log.Error(err, "Unable to create or update namespace")
+		klog.Error(err, "Unable to create or update namespace")
 		// update status of workspace with info about namespace. failed
 		ws.Status.Namespace.Created = false
 		ws.Status.Namespace.Name = ""
 		if err := r.Status().Update(ctx, &ws); err != nil {
-			log.Error(err, "Unable to update status")
+			klog.Error(err, "Unable to update status")
 			return ctrl.Result{}, err
 		}
 	}
@@ -86,12 +87,11 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ws.Status.Namespace.Created = true
 	ws.Status.Namespace.Name = nsName
 	if err := r.Status().Update(ctx, &ws); err != nil {
-		log.Error(err, "Unable to update status")
+		klog.Error(err, "Unable to update status")
 		return ctrl.Result{}, err
 	}
 
-	err = createKcRolesForWorkspace(ctx, r.KcClient, token, "crownlabs", targetClientID, ws.Name)
-	if err != nil {
+	if err := createKcRolesForWorkspace(ctx, r.KcClient, token, "crownlabs", targetClientID, ws.Name); err != nil {
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -112,31 +112,31 @@ func updateNamespace(ws tenantv1alpha1.Workspace, ns *v1.Namespace, wsnsName str
 
 func createKcRolesForWorkspace(ctx context.Context, kcClient gocloak.GoCloak, token string, realmName string, targetClientID string, wsName string) error {
 	newUserRoleName := fmt.Sprintf("workspace-%s:user", wsName)
-	err := createKcRole(ctx, kcClient, token, realmName, targetClientID, newUserRoleName)
-	if err != nil {
-		log.Error("Could not create user role")
+
+	if err := createKcRole(ctx, kcClient, token, realmName, targetClientID, newUserRoleName); err != nil {
+		klog.Error("Could not create user role")
 		return err
 	}
 	newAdminRoleName := fmt.Sprintf("workspace-%s:admin", wsName)
-	err = createKcRole(ctx, kcClient, token, realmName, targetClientID, newAdminRoleName)
-	if err != nil {
-		log.Error("Could not create admin role")
+
+	if err := createKcRole(ctx, kcClient, token, realmName, targetClientID, newAdminRoleName); err != nil {
+		klog.Error("Could not create admin role")
 		return err
 	}
 	return nil
 }
 
 func deleteWorkspaceRoles(ctx context.Context, kcClient gocloak.GoCloak, token string, targetClientID string, wsName string) error {
+
 	userRoleName := fmt.Sprintf("workspace-%s:user", wsName)
-	err := kcClient.DeleteClientRole(ctx, token, "crownlabs", targetClientID, userRoleName)
-	if err != nil {
-		log.Error("Could not delete user role")
+	if err := kcClient.DeleteClientRole(ctx, token, "crownlabs", targetClientID, userRoleName); err != nil {
+		klog.Error("Could not delete user role")
 		return err
 	}
+
 	adminRoleName := fmt.Sprintf("workspace-%s:admin", wsName)
-	err = kcClient.DeleteClientRole(ctx, token, "crownlabs", targetClientID, adminRoleName)
-	if err != nil {
-		log.Error("Could not delete admin role")
+	if err := kcClient.DeleteClientRole(ctx, token, "crownlabs", targetClientID, adminRoleName); err != nil {
+		klog.Error("Could not delete admin role")
 		return err
 	}
 	return nil

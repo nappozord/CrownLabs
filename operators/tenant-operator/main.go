@@ -90,7 +90,6 @@ func main() {
 	}
 	if err = (&controllers.WorkspaceReconciler{
 		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName("Workspace"),
 		Scheme:   mgr.GetScheme(),
 		KcClient: kcClient,
 		KcToken:  token,
