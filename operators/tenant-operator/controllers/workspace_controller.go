@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	gocloak "github.com/Nerzal/gocloak/v7"
 	"github.com/go-logr/logr"
@@ -43,26 +42,18 @@ type WorkspaceReconciler struct {
 // +kubebuilder:rbac:groups=tenant.crownlabs.polito.it,resources=workspaces,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=tenant.crownlabs.polito.it,resources=workspaces/status,verbs=get;update;patch
 
+// Reconcile reconciles the state of a workspace resource
 func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("workspace", req.NamespacedName)
 
-	kcToken := r.KcToken.AccessToken
-	targetClient := "k8s"
-	var targetClientID string
+	CheckAndRenewToken(ctx, r.KcClient, &r.KcToken)
+	token := r.KcToken.AccessToken
 
-	clients, err := r.KcClient.GetClients(ctx, kcToken, "crownlabs", gocloak.GetClientsParams{ClientID: &targetClient})
+	targetClientID, err := GetClientID(ctx, r.KcClient, token, "crownlabs", "k8s")
 	if err != nil {
-		log.Error(err, "Error when getting k8s client")
-	} else if len(clients) > 1 {
-		log.Error(nil, "too many k8s clients")
-
-	} else if len(clients) < 0 {
-		log.Error(nil, "no k8s client")
-
-	} else {
-		targetClientID = *clients[0].ID
-		log.Info("Got client id", "id", targetClientID)
+		log.Error(err, "Error when getting client")
+		return ctrl.Result{}, err
 	}
 
 	var ws tenantv1alpha1.Workspace
@@ -70,7 +61,7 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if err := r.Get(ctx, req.NamespacedName, &ws); err != nil {
 		// reconcile was triggered by a delete request
 		log.Info(fmt.Sprintf("Workspace %s deleted", req.Name))
-		deleteWorkspaceRoles(ctx, r.KcClient, kcToken, targetClientID, req.Name)
+		deleteWorkspaceRoles(ctx, r.KcClient, token, targetClientID, req.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -99,7 +90,7 @@ func (r *WorkspaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	err = createKcRoleForWorkspace(ctx, r.KcClient, kcToken, targetClientID, ws.Name)
+	err = createKcRolesForWorkspace(ctx, r.KcClient, token, "crownlabs", targetClientID, ws.Name)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -119,45 +110,20 @@ func updateNamespace(ws tenantv1alpha1.Workspace, ns *v1.Namespace, wsnsName str
 	ns.Labels["type"] = "workspace"
 }
 
-func createKcRoleForWorkspace(ctx context.Context, kcClient gocloak.GoCloak, token string, targetClientID string, wsName string) error {
+func createKcRolesForWorkspace(ctx context.Context, kcClient gocloak.GoCloak, token string, realmName string, targetClientID string, wsName string) error {
 	newUserRoleName := fmt.Sprintf("workspace-%s:user", wsName)
-	err := createKcRole(ctx, kcClient, token, targetClientID, newUserRoleName)
+	err := createKcRole(ctx, kcClient, token, realmName, targetClientID, newUserRoleName)
 	if err != nil {
 		log.Error("Could not create user role")
 		return err
 	}
 	newAdminRoleName := fmt.Sprintf("workspace-%s:admin", wsName)
-	err = createKcRole(ctx, kcClient, token, targetClientID, newAdminRoleName)
+	err = createKcRole(ctx, kcClient, token, realmName, targetClientID, newAdminRoleName)
 	if err != nil {
 		log.Error("Could not create admin role")
 		return err
 	}
 	return nil
-}
-
-func createKcRole(ctx context.Context, kcClient gocloak.GoCloak, token string, targetClientID string, newRoleName string) error {
-	// check if keycloak role already esists
-
-	_, err := kcClient.GetClientRole(ctx, token, "crownlabs", targetClientID, newRoleName)
-	if err != nil && strings.Contains(err.Error(), "404 Not Found: Could not find role") {
-		// error corresponds to "not found"
-		// need to create new role
-		log.Info("Role didn't exists", "role", newRoleName)
-		tr := true
-		createdRoleName, err := kcClient.CreateClientRole(ctx, token, "crownlabs", targetClientID, gocloak.Role{Name: &newRoleName, ClientRole: &tr})
-		if err != nil {
-			log.Error(err, "Error when creating role")
-			return err
-		}
-		log.Info("Role created", "rolename", createdRoleName)
-		return nil
-	} else if err != nil {
-		log.Error(err, "Error when getting user role")
-		return err
-	} else {
-		log.Info("Role already existed", "role", newRoleName)
-		return nil
-	}
 }
 
 func deleteWorkspaceRoles(ctx context.Context, kcClient gocloak.GoCloak, token string, targetClientID string, wsName string) error {
