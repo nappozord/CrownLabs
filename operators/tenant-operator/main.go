@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
+	"github.com/Nerzal/gocloak/v7"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -54,6 +56,12 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
+	kcURL := takeEnvVar("KEYCLOAK_URL")
+	kcAdminUser := takeEnvVar("KEYCLOAK_ADMIN_USER")
+	kcAdminPsw := takeEnvVar("KEYCLOAK_ADMIN_PSW")
+
+	kcClient := gocloak.NewClient(kcURL)
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -63,6 +71,12 @@ func main() {
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+	token, kcErr := kcClient.LoginAdmin(context.Background(), kcAdminUser, kcAdminPsw, "master")
+
+	if kcErr != nil {
+		setupLog.Error(kcErr, "unable to login as admin on keycloak")
 		os.Exit(1)
 	}
 
@@ -75,9 +89,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.WorkspaceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Workspace"),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("Workspace"),
+		Scheme:   mgr.GetScheme(),
+		KcClient: kcClient,
+		KcToken:  token,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Workspace")
 		os.Exit(1)
@@ -89,4 +105,13 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func takeEnvVar(s string) (ret string) {
+	ret = os.Getenv(s)
+	if ret == "" {
+		setupLog.Info("missing required env " + s)
+		os.Exit(1)
+	}
+	return ret
 }
