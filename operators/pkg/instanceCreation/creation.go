@@ -22,17 +22,73 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateVirtualMachineInstance(name string, namespace string, template crownlabsv1alpha1.LabTemplate, instanceName string, secretName string) virtv1.VirtualMachineInstance {
-	vm := template.Spec.Vm
-	vm.Name = name + "-vmi"
-	vm.Namespace = namespace
-	vm.Labels = map[string]string{"name": name, "template-name": template.Name, "instance-name": instanceName}
+var terminationGracePeriod int64 = 30
 
-	for _, volume := range vm.Spec.Volumes {
-		if volume.Name == "cloudinitdisk" {
-			volume.CloudInitNoCloud.UserDataSecretRef = &corev1.LocalObjectReference{Name: secretName}
-		}
+func CreateVirtualMachineInstance(name string, namespace string, template crownlabsv1alpha1.LabEnvironment, instanceName string, secretName string) virtv1.VirtualMachineInstance {
+	vm := virtv1.VirtualMachineInstance{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name + "-vmi",
+			Namespace: namespace,
+			Labels:    map[string]string{"name": name, "template-name": template.Name, "instance-name": instanceName},
+		},
+		Spec: virtv1.VirtualMachineInstanceSpec{
+			TerminationGracePeriodSeconds: &terminationGracePeriod,
+			Domain: virtv1.DomainSpec{
+				Resources:       virtv1.ResourceRequirements{
+					Requests:                v1.ResourceList{},
+					Limits:                  v1.ResourceList{},
+				},
+				CPU:             &virtv1.CPU{
+					Cores:                 2,
+				},
+				Memory:          &virtv1.Memory{
+					Guest:     &resource.Quantity{},
+				},
+				Machine:         virtv1.Machine{},
+				Devices:         virtv1.Devices{
+					Disks:                      []virtv1.Disk{
+						{
+							Name:              "containerdisk",
+							DiskDevice:        virtv1.DiskDevice{
+								Disk:   &virtv1.DiskTarget{
+									Bus:        "virtio",
+								},
+							},
+						},
+						{
+							Name:              "cloudinitdisk",
+							DiskDevice:        virtv1.DiskDevice{
+								Disk:   &virtv1.DiskTarget{
+									Bus:        "virtio",
+								},
+							},
+						},
+					},
+				},
+			},
+			Volumes: []virtv1.Volume{
+				{
+					Name: "cloudinitdisk",
+					VolumeSource: virtv1.VolumeSource{
+						ContainerDisk: &virtv1.ContainerDiskSource{
+							Image: template.Image,
+						},
+					},
+				},
+				{
+					Name:         "cloudinitdisk",
+					VolumeSource: virtv1.VolumeSource{
+						CloudInitNoCloud:      &virtv1.CloudInitNoCloudSource{
+							UserDataSecretRef:    &corev1.LocalObjectReference{Name: secretName},
+						},
+					},
+				},
+			},
+		},
+		Status: virtv1.VirtualMachineInstanceStatus{},
 	}
+
 	return vm
 }
 

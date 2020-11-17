@@ -60,6 +60,8 @@ type LabInstanceList struct {
 	Items           []LabInstance `json:"items"`
 }
 
+
+
 func init() {
 	SchemeBuilder.Register(&LabInstance{}, &LabInstanceList{})
 }

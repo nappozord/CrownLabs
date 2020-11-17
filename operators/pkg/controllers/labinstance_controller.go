@@ -108,7 +108,7 @@ func (r *LabInstanceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, err
 	}
 
-	vmType := labTemplate.Spec.VmType
+	vmType := labTemplate.Spec.LabEnvironmentList[0].LabType
 	if vmType != crownlabsalpha1.TypeCLI {
 		vmType = crownlabsalpha1.TypeGUI
 	}
@@ -209,7 +209,7 @@ func (r *LabInstanceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 
 	// create VirtualMachineInstance
-	vmi := instanceCreation.CreateVirtualMachineInstance(name, namespace, labTemplate, labInstance.Name, secret.Name)
+	vmi := instanceCreation.CreateVirtualMachineInstance(name, namespace, labTemplate.Spec.LabEnvironmentList[0], labInstance.Name, secret.Name)
 	vmi.SetOwnerReferences(labiOwnerRef)
 	if err := instanceCreation.CreateOrUpdate(r.Client, ctx, log, vmi); err != nil {
 		setLabInstanceStatus(r, ctx, log, "Could not create vmi "+vmi.Name+" in namespace "+vmi.Namespace, "Warning", "VmiNotCreated", &labInstance, "", "")
@@ -248,7 +248,7 @@ func setLabInstanceStatus(r *LabInstanceReconciler, ctx context.Context, log log
 }
 
 func getVmiStatus(r *LabInstanceReconciler, ctx context.Context, log logr.Logger,
-	name string, vmType crownlabsalpha1.VmType, service v1.Service, ingress v1beta1.Ingress,
+	name string, vmType crownlabsalpha1.LabType, service v1.Service, ingress v1beta1.Ingress,
 	labInstance *crownlabsalpha1.LabInstance, vmi virtv1.VirtualMachineInstance, startTimeVM time.Time) {
 
 	var vmStatus virtv1.VirtualMachineInstancePhase

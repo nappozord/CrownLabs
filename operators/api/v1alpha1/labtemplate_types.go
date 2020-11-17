@@ -18,15 +18,19 @@ package v1alpha1
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	virtv1 "kubevirt.io/client-go/api/v1"
 )
 
-type VmType string
+type LabType string
+type EnvironmentType string
 
 const (
-	TypeGUI VmType = "GUI"
-	TypeCLI VmType = "CLI"
+	TypeGUI LabType = "GUI"
+	TypeCLI LabType = "CLI"
+	ClassContainer EnvironmentType = "Container"
+	ClassVM EnvironmentType = "VirtualMachine"
 )
+
+
 
 // LabTemplateSpec defines the desired state of LabTemplate
 type LabTemplateSpec struct {
@@ -34,9 +38,9 @@ type LabTemplateSpec struct {
 	LabName     string                        `json:"labName,omitempty"`
 	LabNum      resource.Quantity             `json:"labNum,omitempty"`
 	Description string                        `json:"description,omitempty"`
-	Vm          virtv1.VirtualMachineInstance `json:"vm"`
+	LabEnvironmentList []LabEnvironment
 	// +kubebuilder:validation:Enum="GUI";"CLI"
-	VmType `json:"vmType,omitempty"`
+
 }
 
 // LabTemplateStatus defines the observed state of LabTemplate
@@ -44,6 +48,16 @@ type LabTemplateStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make lab-template" to regenerate code after modifying this file
 }
+
+type LabEnvironment struct {
+	Name string  `json:"Name,omitempty"`
+	LabType `json:"LabType,omitempty"`
+    Resources resource.Quantity `json:"resources,omitempty"`
+	Type  EnvironmentType `json:"type"`
+	Persistent bool `json:"persistent"`
+	Image string `json:"image"`
+}
+
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
